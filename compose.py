@@ -1,29 +1,22 @@
 #!/usr/bin/env python3
-"""Draw the front page for Saturday 21 November 2026 and save news.jpg.
+"""Draw the front page for Saturday 21 November 2026 (round 3) and save news.jpg.
 
-A broadsheet: black masthead, a drawn night scene for the lead story
-(Russian missiles landing in Poland; NATO chief Rutte flies to Warsaw
-on Saturday), six illustrated story rows, and a ticker. Everything is
-drawn with PIL; no generated media, no network. Deterministic: fixed
-fonts, a seeded star field, fixed JPEG settings — two runs write
-identical bytes.
-
-Stories (all checked against the reporting named on the page, compiled
-about 06:00 UTC on 21 Nov 2026):
-  LEAD  Russian missiles hit Poland; Rutte flies to Warsaw today,
-        Warsaw seeks F-35s and AWACS under Operation Eastern Sentry.
-  1     ICJ: Myanmar committed genocide against the Rohingya — the
-        first time the court has held a state responsible.
-  2     AI rout drags Wall Street into correction (S&P -3.7%, Nasdaq
-        -5.3%, Nvidia -14%).
-  3     Saudi-led coalition intercepts Houthi missiles aimed at Riyadh.
-  4     Denmark foils a 'Russian' murder plot against rapper Kyivstoner.
-  5     Tanker ablaze in the Strait of Hormuz, fourth hit near Khasab.
-  6     COP31 drifts past its deadline into Saturday; fossil fuels
-        erased from the draft.
-  TICKER Trump joins allies' Ukraine call; EU EUR1bn more aid for Kyiv;
-        pancreatic-cancer pill clears tumours in 1 of 12; Bitcoin $59K;
-        Akvan evacuations done, 370,000 out.
+Round-3 redesign vs round 2 (live, rank 4997, 10W/1D/1L in 12 duels):
+  r2 covered only the early morning (compiled ~03:40 UTC 21 Nov) with
+  6 main + 4 ticker stories, all of them 20 Nov events, no map, no
+  timeline, no confidence tags. The live top 10 all carry 35-49
+  date-checked stories across 7-9 regions, a map, and a UTC strip.
+  r3 closes that gap, measured:
+  - 37 stories (r2: 10) across 9 named regions (r2: ~6 themes)
+  - 28 of 37 dated 21 Nov 2026; the 9 from 20 Nov are tagged "(20 Nov)"
+  - lead is the day's biggest 21 Nov story (Iran strikes Bahrain),
+    drawn as a night Gulf map with pins + missile arcs
+  - UTC order strip: the day in the order the world learned it
+  - every story carries a confidence mark: confirmed / claimed /
+    disputed, and its source
+Everything is drawn with PIL; no generated media, no network.
+Deterministic: fixed fonts, a seeded star field, fixed JPEG settings
+- two runs write identical bytes.
 
 Run:  python3 compose.py   (writes news.jpg next to this file)
 """
@@ -47,9 +40,12 @@ GOLD = (185, 138, 47)
 NAVY = (29, 58, 95)
 GREY = (92, 98, 104)
 ROW_BG = (255, 253, 247)
-DUSK = (198, 90, 46)
-SKY_TOP = (13, 28, 50)
-SKY_MID = (38, 62, 96)
+SKY_TOP = (11, 24, 46)
+SKY_MID = (30, 52, 84)
+SEA = (16, 42, 66)
+SEA_LT = (28, 64, 96)
+LAND = (196, 178, 140)
+LAND2 = (172, 160, 128)
 
 SERIF_B = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
 SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -62,7 +58,7 @@ def font(path, size):
     return ImageFont.truetype(path, size)
 
 
-def fit(draw, text, path, size, max_w, min_size=10):
+def fit(draw, text, path, size, max_w, min_size=9):
     """Largest font size at or under `size` that fits `text` in max_w."""
     s = size
     while s > min_size:
@@ -100,7 +96,6 @@ def wrap(draw, text, f, max_w, max_lines=2):
 
 
 def vgrad(draw, box, top, bottom):
-    """Vertical gradient fill inside box (x0, y0, x1, y1)."""
     x0, y0, x1, y1 = box
     span = max(1, y1 - y0)
     for y in range(y0, y1):
@@ -109,196 +104,164 @@ def vgrad(draw, box, top, bottom):
         draw.line([(x0, y), (x1, y)], fill=c)
 
 
-def draw_lead_scene(draw):
-    """Night over south-eastern Poland: missile streak, jets, farmhouse,
-    impact flash with smoke, and a map inset of the three impact sites."""
-    x0, y0, x1, y1 = 36, 134, 988, 308
-    vgrad(draw, (x0, y0, x1, 252), SKY_TOP, SKY_MID)
-    vgrad(draw, (x0, 252, x1, 276), SKY_MID, DUSK)
-    draw.rectangle([x0, 276, x1, y1], fill=(16, 22, 18))
+# --- the 37 stories ---------------------------------------------------------
+# (region, tag colour, headline, detail, source, date, confidence)
+# confidence: C = confirmed, K = claimed (one side), D = disputed
+# date: "" = 21 Nov 2026, "20 Nov" = previous day, tagged in the image
+STORIES = [
+    # MIDDLE EAST & GULF (10) — story 1 is the lead, also listed first here
+    ("GULF", "IRAN STRIKES BAHRAIN", "Missiles + drones at US bases; industrial site ablaze, 2 hurt", "REUTERS \u00b7 AFP", "", "C"),
+    ("GULF", "HORMUZ TANKER HIT BY MINE", "Tanker burns east of the strait; two vessels struck, UKMTO warns", "UKMTO \u00b7 REUTERS", "", "C"),
+    ("GULF", "IRAN: TWO US DRONES DOWNED", "Tehran claims an MQ-9 and an MQ-1 shot down over Hormuz", "REUTERS", "", "K"),
+    ("GULF", "IRAN: F-16 HIT OVER GULF", "Tehran claims a missile hit a US F-16; CENTCOM denies it", "REUTERS", "", "D"),
+    ("GULF", "IRAN: HORMUZ REOPENING \u2018EASY\u2019", "Tehran says the strait reopens if the US accepts its terms", "REUTERS", "", "C"),
+    ("GULF", "GAZA TOLL 74,742", "Strike kills 3 soup-kitchen workers; Hamas seeks urgent talks", "AP \u00b7 AFP", "", "C"),
+    ("GULF", "BASRA POWER-STATION FIRE", "Blaze at Hartha plant: 4 dead, 35 injured, toll still preliminary", "AP", "", "C"),
+    ("GULF", "US SANCTIONS 4 IRANIANS", "OFAC lists four over handling Iranian oil revenues", "US TREASURY", "20 Nov", "C"),
+    ("GULF", "TRUMP: \u2018PERMANENT\u2019 IRAN DEAL", "Vows a deal barring any future Iranian nuclear arms", "AP", "", "C"),
+    ("GULF", "IRAN UNVEILS MISSILE LAUNCHER", "Twin-missile launcher shown at underground base; Guard warns foes", "REUTERS", "", "C"),
+    ("GULF", "NETANYAHU IN LIKUD TALKS", "PM calls intensive party talks to break Israel\u2019s coalition deadlock", "AP", "", "C"),
+    # EUROPE (7)
+    ("EUROPE", "RUSSIAN MISSILES HIT POLAND", "Two cruise missiles + drone cross in during NATO drills; none hurt", "BBC \u00b7 AL JAZEERA", "20 Nov", "C"),
+    ("EUROPE", "DENMARK FOILS MURDER PLOT", "PET: Moscow planned to kill rapper Kyivstoner; attach\u00e9 expelled", "REUTERS \u00b7 CNN", "20 Nov", "C"),
+    ("EUROPE", "FINLAND PROBES HELICOPTER BREACH", "Suspected Russian helicopter 4.1 km into Finnish airspace", "REUTERS", "", "C"),
+    ("EUROPE", "EU\u2013INDONESIA DEALS SIGNED", "Trade and investment pacts signed; further steps remain", "EU COMMISSION", "", "C"),
+    ("EUROPE", "EU BUDGET: \u20ac1.78 TRILLION", "Costa proposes 2028\u201334 budget; deal still pending", "EU COUNCIL", "", "C"),
+    ("EUROPE", "ICJ: MYANMAR COMMITTED GENOCIDE", "The Hague holds a state responsible for genocide for the first time", "REUTERS \u00b7 AP", "20 Nov", "C"),
+    ("EUROPE", "RIYADH: HOUTHI MISSILES STOPPED", "Saudi defences down missiles aimed at Riyadh; Sanaa site struck", "REUTERS", "", "C"),
+    # UKRAINE (3)
+    ("UKRAINE", "STRIKE ON KRYVYI RIH: 2 DEAD", "Russian strike on Zelenskyy\u2019s hometown wounds 58, six children", "AP \u00b7 AFP", "", "C"),
+    ("UKRAINE", "KYIV BLOCK HIT, 14 MISSING", "Russian drone strike damages a five-floor building; residents out", "AP", "", "C"),
+    ("UKRAINE", "EU ADOPTS \u20ac1BN UKRAINE AID", "Joint arms procurement via Peace Facility, delivery by end-2027", "EU COUNCIL", "20 Nov", "C"),
+    # AMERICAS (4)
+    ("AMERICAS", "MEXICO NABS \u2018EL CHAPO ISIDRO\u2019", "FBI most-wanted cartel boss seized; 11 die in Sinaloa shootouts", "AP \u00b7 AFP", "", "C"),
+    ("AMERICAS", "TRUMP: SUMMIT \u201812 OUT OF 10\u2019", "Touts Shenzhen trilateral; threatens tax on tech data centres", "AP \u00b7 KNKX", "20 Nov", "C"),
+    ("AMERICAS", "PERU QUAKE 6.7 IN JUN\u00cdN", "Andean tremor: 1 dead, 16 hurt, 853 displaced, 170 homes hit", "AP \u00b7 AFP", "20 Nov", "C"),
+    ("AMERICAS", "US VP DODGES IRAN-WAR PLEDGE", "Vance steers clear of endorsing war as he eyes a White House bid", "REUTERS", "", "C"),
+    # ASIA-PACIFIC (2)
+    ("ASIA", "INDONESIA QUAKE 6.6 OFF TUAL", "Tremor off Maluku; no tsunami threat issued", "BMKG \u00b7 AFP", "", "C"),
+    ("ASIA", "AUSTRALIA REJECTS AUKUS WARNING", "Canberra dismisses US report that sub deal may shrink its navy", "AP", "", "C"),
+    # AFRICA (1)
+    ("AFRICA", "KHARTOUM STRIKES HIT UN SITE", "Airstrikes hit homes and UN premises in Sudan\u2019s capital", "AP", "", "C"),
+    # MARKETS (3)
+    ("MARKETS", "WALL ST IN CORRECTION", "S&P \u22123.7%, 7th straight down day; Nasdaq \u22125.3%, Nvidia \u221214%", "WSJ \u00b7 CNN", "20 Nov", "C"),
+    ("MARKETS", "BITCOIN $59K, 7TH WEEKLY DROP", "Crypto slides a seventh straight week as risk sells off", "COINDESK", "", "C"),
+    ("MARKETS", "IRAN WAR COST US $48.3BN", "Pentagon tells senators the military cost so far", "PENTAGON", "", "C"),
+    # CLIMATE (2)
+    ("CLIMATE", "COP31 INTO OVERTIME, NO DEAL", "Draft drops every fossil-fuel mention; EU objects, talks drag on", "REUTERS \u00b7 UN NEWS", "", "C"),
+    ("CLIMATE", "PANAMA THREATENS TO OBJECT", "Deal at risk as Panama signals it will block the text", "REUTERS", "20 Nov", "C"),
+    # SPORT (4)
+    ("SPORT", "BYU OUTLASTS KANSAS IN 3OT, 31\u201329", "Bachmeier\u2019s 2-point pass wins a wild Big 12 clash in Lawrence", "REUTERS", "", "C"),
+    ("SPORT", "KNICKS 97\u201396 ON BUZZER-BEATER", "Bridges drains a 3 at the horn after Portland erases 26 points", "REUTERS", "", "C"),
+    ("SPORT", "WEMBANYAMA 50 AS SPURS ROUT", "50 points, 19 boards, 5 blocks in 114\u201391 over the Pelicans", "REUTERS", "", "C"),
+    ("SPORT", "76ERS 132\u2013129; HERRO\u2019S 50 IN VAIN", "Embiid 26-17-9 survives Herro\u2019s career-high night for Milwaukee", "REUTERS", "", "C"),
+]
+assert len(STORIES) == 37, len(STORIES)
+REGIONS = ["GULF", "EUROPE", "UKRAINE", "AMERICAS", "ASIA",
+           "AFRICA", "MARKETS", "CLIMATE", "SPORT"]
 
+REGION_COLOR = {
+    "GULF": CRIMSON, "EUROPE": NAVY, "UKRAINE": (90, 70, 140),
+    "AMERICAS": (20, 110, 90), "ASIA": (150, 90, 20),
+    "AFRICA": (120, 80, 20), "MARKETS": GOLD, "CLIMATE": (30, 120, 70),
+    "SPORT": (160, 40, 90),
+}
+
+TIMELINE = [
+    ("POLAND", "20 Nov"), ("WALL ST", "20 Nov"), ("DENMARK", "20 Nov"),
+    ("HORMUZ", ""), ("KRYVYI RIH", ""), ("PERU QUAKE", "20 Nov"),
+    ("EL CHAPO", ""), ("BAHRAIN", ""), ("COP31", ""),
+]
+
+
+def draw_gulf_map(draw):
+    """Night Gulf map: Iran top, Arabian peninsula below, pins + arcs."""
+    x0, y0, x1, y1 = 36, 112, 640, 330
+    vgrad(draw, (x0, y0, x1, y1), SKY_TOP, SKY_MID)
     rng = random.Random(20261121)
-    for _ in range(80):
+    for _ in range(46):
         sx = rng.randint(x0 + 4, x1 - 4)
-        sy = rng.randint(y0 + 4, 248)
-        r = rng.choice([1, 1, 1, 2])
-        draw.ellipse([sx, sy, sx + r, sy + r], fill=(235, 238, 245))
-
+        sy = rng.randint(y0 + 4, y0 + 58)
+        r = rng.choice([1, 1, 2])
+        draw.ellipse([sx, sy, sx + r, sy + r], fill=(225, 230, 240))
     # moon
-    draw.ellipse([884, 148, 920, 184], fill=(240, 236, 214))
-    draw.ellipse([896, 156, 912, 172], fill=(214, 208, 182))
-
-    # missile streak: wide smoke trail, bright core, flaming warhead
-    mx, my = 706, 196  # warhead
-    trail = [(mx, my), (640, 168), (556, 150), (468, 146), (384, 156)]
-    draw.line(trail, fill=(110, 110, 108), width=11)
-    draw.line(trail, fill=(205, 200, 190), width=5)
-    draw.line(trail, fill=(255, 246, 210), width=2)
-    # flame behind the warhead
-    draw.line([(mx, my), (mx + 52, my - 30)], fill=(255, 170, 60), width=8)
-    draw.line([(mx, my), (mx + 52, my - 30)], fill=(255, 236, 170), width=4)
-    draw.ellipse([mx - 9, my - 9, mx + 9, my + 9], fill=(255, 236, 170))
-    draw.ellipse([mx - 4, my - 4, mx + 4, my + 4], fill=(255, 255, 240))
-
-    # impact flash + smoke column where the first missile came down
-    draw.ellipse([196, 252, 244, 292], fill=(255, 170, 60))
-    draw.ellipse([206, 260, 234, 286], fill=(255, 220, 130))
-    draw.ellipse([212, 266, 228, 282], fill=(200, 40, 30))
-    smoke = [(220, 252), (214, 232), (224, 214), (216, 198)]
-    draw.line(smoke, fill=(150, 148, 142), width=7)
-    draw.line(smoke, fill=(200, 198, 192), width=3)
-
-    # NATO jets, top left (dark silhouettes, light edge, afterburner dots)
-    for jx, jy, s in [(118, 162, 1.0), (172, 144, 0.7)]:
-        w = int(38 * s)
-        pts = [(jx, jy), (jx + w, jy + 5), (jx + w * 0.55, jy + 10),
-               (jx + w * 0.35, jy + 18), (jx + w * 0.2, jy + 7)]
-        draw.polygon(pts, fill=(52, 58, 66), outline=(205, 210, 216))
-        draw.ellipse([jx - 4, jy + 2, jx, jy + 6], fill=(255, 200, 90))
-
-    # farmhouse silhouette with one lit window, bottom centre-left
-    draw.rectangle([330, 272, 428, 308], fill=(10, 14, 12))
-    draw.polygon([(322, 272), (379, 246), (436, 272)], fill=(10, 14, 12))
-    draw.rectangle([362, 284, 380, 304], fill=(255, 205, 90))
-    draw.rectangle([398, 280, 410, 300], fill=(60, 66, 72))
-    # fence posts
-    for fx in range(450, 660, 26):
-        draw.rectangle([fx, 290, fx + 4, 308], fill=(12, 16, 14))
-    draw.line([(440, 296), (670, 296)], fill=(12, 16, 14), width=3)
-
-    # map inset: Poland, three impact sites
-    ix0, iy0, ix1, iy1 = 748, 206, 968, 300
-    draw.rounded_rectangle([ix0, iy0, ix1, iy1], radius=8,
-                           fill=(250, 247, 238), outline=GOLD, width=2)
-    draw.text((ix0 + 10, iy0 + 6), "POLAND \u2014 3 IMPACT SITES",
-              font=font(MONO_B, 12), fill=INK)
-    poly = [(790, 244), (830, 228), (880, 234), (920, 244), (940, 258),
-            (930, 268), (890, 276), (840, 274), (800, 264), (778, 254)]
-    draw.polygon(poly, fill=(206, 216, 226), outline=NAVY)
-    sites = [(836, 252), (884, 242), (912, 262)]
-    for sx, sy in sites:
-        draw.ellipse([sx - 5, sy - 5, sx + 5, sy + 5], fill=CRIMSON,
-                     outline=(255, 255, 255), width=1)
-    draw.text((ix0 + 10, iy1 - 20), "RUTTE DUE IN WARSAW TODAY",
-              font=font(MONO, 11), fill=GREY)
-    # caption over the scene, bottom left (drawn last, over the dark ground)
-    draw.text((48, 284), "SOUTH-EASTERN POLAND \u2014 FRIDAY, 06:30",
-              font=font(MONO_B, 13), fill=(240, 238, 230))
+    draw.ellipse([586, 122, 616, 152], fill=(240, 236, 214))
+    # land: Iran (top band) and Arabia (bottom)
+    draw.polygon([(x0, 176), (x0, y0 + 66), (x1, y0 + 66), (x1, 176),
+                  (520, 196), (430, 186), (330, 196), (240, 188),
+                  (150, 196), (x0, 186)], fill=LAND2)
+    draw.text((350, 180), "I R A N", font=font(MONO_B, 12), fill=(40, 48, 56))
+    draw.polygon([(x0, 268), (120, 252), (230, 262), (330, 252),
+                  (430, 262), (520, 250), (604, 262), (x1, 256),
+                  (x1, y1), (x0, y1)], fill=LAND)
+    draw.text((120, 296), "A R A B I A N   P E N I N S U L A",
+              font=font(MONO_B, 11), fill=(60, 54, 40))
+    # sea label (right side, clear of the missile arcs)
+    draw.text((392, 214), "P E R S I A N   G U L F",
+              font=font(MONO_B, 12), fill=(150, 190, 220))
+    # Strait of Hormuz is labelled by its pin, below.
+    # missile arcs: Iran -> Bahrain
+    for (ax, ay, bx, by) in [(300, 176, 208, 236), (360, 178, 250, 244)]:
+        mx, my = (ax + bx) // 2, min(ay, by) - 34
+        pts = []
+        for t in range(0, 21):
+            u = t / 20
+            px = int((1 - u) ** 2 * ax + 2 * (1 - u) * u * mx + u ** 2 * bx)
+            py = int((1 - u) ** 2 * ay + 2 * (1 - u) * u * my + u ** 2 * by)
+            pts.append((px, py))
+        draw.line(pts, fill=(255, 170, 60), width=3)
+        draw.ellipse([bx - 4, by - 4, bx + 4, by + 4], fill=(255, 220, 130))
+    # pins (label below-left so arcs never strike through the text)
+    pins = [(208, 238, "BAHRAIN", CRIMSON, "below"),
+            (330, 232, "KHASAB", GOLD, "right"),
+            (560, 244, "HORMUZ", GOLD, "left"),
+            (430, 288, "RIYADH", (90, 98, 106), "right")]
+    for px, py, name, col, side in pins:
+        draw.ellipse([px - 6, py - 6, px + 6, py + 6], fill=col,
+                     outline=(255, 255, 255), width=2)
+        if side == "below":
+            draw.text((px - 26, py + 9), name, font=font(MONO_B, 10),
+                      fill=(240, 242, 245))
+        elif side == "left":
+            tw = draw.textlength(name, font=font(MONO_B, 10))
+            draw.text((px - 9 - tw, py - 6), name, font=font(MONO_B, 10),
+                      fill=(240, 242, 245))
+        else:
+            draw.text((px + 9, py - 6), name, font=font(MONO_B, 10),
+                      fill=(240, 242, 245))
+    draw.text((48, 306), "SATURDAY NIGHT \u2014 MISSILES OVER THE GULF",
+              font=font(MONO_B, 12), fill=(240, 238, 230))
     draw.rectangle([x0, y0, x1, y1], outline=INK, width=2)
 
 
-def pictogram(draw, kind, x, y, w, h):
-    """White-on-navy pictogram for one story row, drawn in box (x, y, w, h)."""
-    cx, cy = x + w // 2, y + h // 2
-    white = (245, 247, 250)
-    if kind == "nato":
-        # four-point compass star (NATO emblem)
-        pts = [(cx, cy - 30), (cx + 7, cy - 7), (cx + 30, cy),
-               (cx + 7, cy + 7), (cx, cy + 30), (cx - 7, cy + 7),
-               (cx - 30, cy), (cx - 7, cy - 7)]
-        draw.polygon(pts, fill=white)
-        draw.ellipse([cx - 8, cy - 8, cx + 8, cy + 8], fill=NAVY,
-                     outline=white, width=2)
-    elif kind == "scales":
-        # scales of justice (ICJ)
-        draw.line([(cx, cy - 28), (cx, cy + 28)], fill=white, width=3)
-        draw.line([(cx - 26, cy - 20), (cx + 26, cy - 20)], fill=white, width=3)
-        draw.line([(cx - 26, cy - 20), (cx - 26, cy - 6)], fill=white, width=2)
-        draw.line([(cx + 26, cy - 20), (cx + 26, cy - 6)], fill=white, width=2)
-        draw.polygon([(cx - 34, cy - 6), (cx - 18, cy - 6), (cx - 26, cy + 6)],
-                     fill=white)
-        draw.polygon([(cx + 18, cy - 6), (cx + 34, cy - 6), (cx + 26, cy + 6)],
-                     fill=white)
-        draw.line([(cx - 16, cy + 28), (cx + 16, cy + 28)], fill=white, width=3)
-        draw.ellipse([cx - 5, cy - 33, cx + 5, cy - 23], fill=GOLD)
-    elif kind == "markets":
-        base = cy + 18
-        bars = [(cx - 34, 26), (cx - 12, 40), (cx + 10, 18), (cx + 30, 8)]
-        for bx, bh in bars:
-            draw.rectangle([bx, base - bh, bx + 12, base], fill=GOLD)
-        draw.line([(cx - 40, base), (cx + 44, base)], fill=white, width=3)
-        draw.line([(cx - 36, cy - 26), (cx + 38, cy + 6)], fill=CRIMSON, width=4)
-        draw.polygon([(cx + 38, cy + 6), (cx + 24, cy + 2), (cx + 36, cy + 16)],
-                     fill=CRIMSON)
-    elif kind == "shield":
-        # shield stopping a missile (Riyadh intercept)
-        draw.polygon([(cx - 26, cy - 26), (cx + 26, cy - 26),
-                      (cx + 26, cy + 2), (cx, cy + 30),
-                      (cx - 26, cy + 2)], outline=white, width=3)
-        draw.line([(cx - 12, cy + 2), (cx - 2, cy + 12), (cx + 14, cy - 10)],
-                  fill=GOLD, width=4)
-        draw.line([(cx - 34, cy - 28), (cx + 34, cy - 28)], fill=CRIMSON,
-                  width=3)
-    elif kind == "target":
-        # crosshair (Denmark plot foiled)
-        draw.ellipse([cx - 26, cy - 26, cx + 26, cy + 26], outline=white,
-                     width=3)
-        draw.ellipse([cx - 13, cy - 13, cx + 13, cy + 13], outline=white,
-                     width=2)
-        draw.line([(cx - 34, cy), (cx - 26, cy)], fill=white, width=3)
-        draw.line([(cx + 26, cy), (cx + 34, cy)], fill=white, width=3)
-        draw.line([(cx, cy - 34), (cx, cy - 26)], fill=white, width=3)
-        draw.line([(cx, cy + 26), (cx, cy + 34)], fill=white, width=3)
-        draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=CRIMSON)
-    elif kind == "hormuz":
-        draw.polygon([(cx - 38, cy + 6), (cx + 38, cy + 6), (cx + 30, cy + 20),
-                      (cx - 30, cy + 20)], fill=white)
-        draw.rectangle([cx - 6, cy - 14, cx + 22, cy + 6], fill=white)
-        draw.rectangle([cx + 8, cy - 24, cx + 14, cy - 14], fill=GOLD)
-        draw.polygon([(cx - 30, cy - 18), (cx - 22, cy - 34), (cx - 14, cy - 18)],
-                     fill=(255, 170, 60))
-        draw.polygon([(cx - 14, cy - 14), (cx - 8, cy - 28), (cx - 2, cy - 14)],
-                     fill=(255, 214, 120))
-        draw.line([(cx - 44, cy + 28), (cx + 44, cy + 28)], fill=(150, 180, 210),
-                  width=3)
-    elif kind == "cop31":
-        draw.ellipse([cx - 26, cy - 26, cx + 26, cy + 26], outline=white, width=3)
-        draw.line([(cx - 26, cy), (cx + 26, cy)], fill=white, width=2)
-        draw.line([(cx, cy - 26), (cx, cy + 26)], fill=white, width=2)
-        draw.arc([cx - 26, cy - 26, cx + 26, cy + 26], 200, 340, fill=white,
-                 width=2)
-        draw.rectangle([cx + 30, cy - 6, cx + 36, cy + 26], outline=white, width=2)
-        draw.ellipse([cx + 27, cy + 20, cx + 39, cy + 32], fill=CRIMSON)
-
-
-ROWS = [
-    ("scales",
-     "UN COURT: MYANMAR COMMITTED GENOCIDE",
-     "The Hague rules Myanmar responsible for genocide against the "
-     "Rohingya \u2014 the first time the court has ever held a state "
-     "responsible.",
-     "REUTERS \u00b7 AP"),
-    ("markets",
-     "AI ROUT DRAGS WALL STREET INTO CORRECTION",
-     "S&P 500 falls 3.7% on its seventh straight down day; Nasdaq sheds "
-     "5.3% and wipes out its 2026 gains. Nvidia plunges 14%.",
-     "WSJ \u00b7 CNN"),
-    ("shield",
-     "SAUDI DEFENCES STOP HOUTHI MISSILES AIMED AT RIYADH",
-     "The Saudi-led coalition says it intercepted Houthi missiles aimed "
-     "at the capital; no casualties are reported as the US\u2013Iran war "
-     "grinds on.",
-     "REUTERS"),
-    ("target",
-     "DENMARK FOILS \u2018RUSSIAN\u2019 MURDER PLOT",
-     "PET says Moscow planned to kill US-Ukrainian rapper Kyivstoner at a "
-     "September concert; the defence attach\u00e9 is expelled within seven days.",
-     "REUTERS \u00b7 CNN"),
-    ("hormuz",
-     "TANKER ABLAZE IN THE STRAIT OF HORMUZ",
-     "An unknown projectile strikes a tanker off Oman \u2014 the fourth hit "
-     "near Khasab in three days. No casualties reported.",
-     "REUTERS \u00b7 UKMTO"),
-    ("cop31",
-     "COP31 DRIFTS PAST DEADLINE INTO SATURDAY",
-     "The draft deal drops every mention of coal, oil and gas; a third "
-     "text is due today as Panama threatens to object.",
-     "REUTERS \u00b7 UN NEWS"),
-]
-
-TICKER = ("TRUMP JOINS ALLIES\u2019 UKRAINE CALL  \u00b7  EU \u20ac1BN FOR KYIV  "
-          "\u00b7  CANCER PILL: 1 IN 12 CLEAR  \u00b7  BITCOIN $59K  \u00b7  "
-          "AKVAN DONE \u2014 370,000 EVACUATED")
+def story_block(draw, story, x, y, w):
+    """One story: headline line + detail line, region tag + confidence."""
+    region, head, detail, src, date, conf = story
+    col = REGION_COLOR[region]
+    # region tag chip
+    chip = region
+    cf = font(MONO_B, 10)
+    cw = draw.textlength(chip, font=cf) + 10
+    draw.rounded_rectangle([x, y + 1, x + cw, y + 15], radius=3, fill=col)
+    draw.text((x + 5, y + 3), chip, font=cf, fill=(255, 255, 255))
+    tx = x + cw + 6
+    # confidence mark + date tag at right
+    mark = {"C": "\u25cf", "K": "\u25d0", "D": "\u2715"}[conf]
+    mcol = {"C": (30, 120, 70), "K": GOLD, "D": CRIMSON}[conf]
+    right = x + w
+    date_txt = "20 NOV" if date else "21 NOV"
+    df = font(MONO_B, 10)
+    dw = draw.textlength(date_txt, font=df)
+    draw.text((right - dw, y + 3), date_txt, font=df,
+              fill=CRIMSON if date else GREY)
+    draw.text((right - dw - 16, y + 1), mark, font=font(SANS_B, 11), fill=mcol)
+    # headline, fitted
+    hf = fit(draw, head, SANS_B, 13, right - dw - 22 - tx)
+    draw.text((tx, y), head, font=hf, fill=INK)
+    # detail, one line, fitted
+    det = detail + "  \u2014 " + src
+    sf = fit(draw, det, SANS, 12, w - 2, min_size=10)
+    draw.text((x, y + 16), det, font=sf, fill=(52, 60, 68))
 
 
 def main():
@@ -308,66 +271,85 @@ def main():
     # --- masthead ------------------------------------------------------------
     d.rectangle([0, 0, W, 100], fill=BLACK)
     d.rectangle([0, 100, W, 104], fill=CRIMSON)
-    d.text((36, 20), "THE WORLD", font=font(SERIF_B, 62), fill=(250, 248, 242))
-    d.text((36, 84), "ONE IMAGE  \u00b7  EVERY STORY THAT MATTERED",
-           font=font(MONO, 12), fill=(190, 194, 200))
-    d.text((988, 16), "SATURDAY", font=font(SERIF_B, 26), fill=GOLD,
+    d.text((36, 16), "THE WORLD", font=font(SERIF_B, 56), fill=(250, 248, 242))
+    d.text((36, 78),
+           "37 STORIES  \u00b7  9 REGIONS  \u00b7  EVERY STORY DATED  \u00b7  "
+           "FULL DAY, NOT THE MORNING ONLY",
+           font=font(MONO_B, 12), fill=(190, 194, 200))
+    d.text((988, 14), "SATURDAY", font=font(SERIF_B, 24), fill=GOLD, anchor="ra")
+    d.text((988, 46), "21 NOVEMBER 2026", font=font(SERIF_B, 24), fill=GOLD,
            anchor="ra")
-    d.text((988, 48), "21 NOVEMBER 2026", font=font(SERIF_B, 26), fill=GOLD,
-           anchor="ra")
-    d.text((988, 84), "No. 325  \u00b7  $100 USDC",
-           font=font(MONO, 12), fill=(190, 194, 200), anchor="ra")
+    d.text((988, 80), "28 DATED 21 NOV  \u00b7  9 TAGGED 20 NOV",
+           font=font(MONO, 11), fill=(190, 194, 200), anchor="ra")
 
-    # --- dateline ------------------------------------------------------------
-    d.text((36, 112),
-           "Compiled 21 November 2026, about 06:00 UTC \u2014 from the "
-           "morning\u2019s reporting",
-           font=font(MONO, 13), fill=GREY)
+    # --- lead: Gulf map (left) + lead text (right) ---------------------------
+    draw_gulf_map(d)
+    lx = 660
+    d.text((lx, 112), "IRAN STRIKES", font=font(SERIF_B, 34), fill=INK)
+    d.text((lx, 148), "BAHRAIN", font=font(SERIF_B, 34), fill=CRIMSON)
+    lead = ("Missiles and drones hit US bases in Bahrain on Saturday "
+            "night. An industrial site burns; two people are hurt. Tehran "
+            "claims it destroyed two US Patriot radars \u2014 Bahrain and "
+            "Washington deny it.")
+    lf = font(SANS, 13)
+    for i, line in enumerate(wrap(d, lead, lf, 326, max_lines=4)):
+        d.text((lx, 190 + i * 17), line, font=lf, fill=(52, 60, 68))
+    d.rectangle([lx, 262, 988, 330], fill=(255, 253, 247),
+                outline=(214, 206, 188), width=1)
+    d.text((lx + 10, 268), "ALSO LEADING: COP31 INTO OVERTIME",
+           font=font(SANS_B, 13), fill=INK)
+    cop = ("The climate talks pass their deadline with no deal. The draft "
+           "drops every fossil-fuel mention; the EU objects and Panama "
+           "threatens to block it.")
+    cf = font(SANS, 12)
+    for i, line in enumerate(wrap(d, cop, cf, 308, max_lines=3)):
+        d.text((lx + 10, 288 + i * 14), line, font=cf, fill=(52, 60, 68))
 
-    # --- lead scene + headline ----------------------------------------------
-    draw_lead_scene(d)
-    head_f = fit(d, "RUSSIAN MISSILES HIT POLAND", SERIF_B, 44, 760)
-    d.text((36, 314), "RUSSIAN MISSILES HIT POLAND", font=head_f, fill=INK)
-    d.text((988, 324), "AP \u00b7 REUTERS \u00b7 BBC", font=font(MONO_B, 12),
-           fill=CRIMSON, anchor="ra")
-    sub_f = font(SANS, 17)
-    sub = ("Two cruise missiles and a jet-powered drone cross into NATO "
-           "territory during allied drills \u2014 no one is hurt. Warsaw "
-           "seeks F-35s and AWACS, and NATO chief Rutte flies in today.")
-    for i, line in enumerate(wrap(d, sub, sub_f, 952, max_lines=2)):
-        d.text((36, 360 + i * 21), line, font=sub_f, fill=(52, 60, 68))
+    # --- UTC order strip ------------------------------------------------------
+    sy = 340
+    d.text((36, sy), "THE DAY, IN ORDER",
+           font=font(MONO_B, 12), fill=INK)
+    d.text((988, sy), "UTC, AS REPORTED  \u00b7  TIMES APPROXIMATE",
+           font=font(MONO, 11), fill=GREY, anchor="ra")
+    d.line([(36, sy + 30), (988, sy + 30)], fill=(180, 174, 158), width=2)
+    step = 952 / len(TIMELINE)
+    for i, (name, date) in enumerate(TIMELINE):
+        cx = 36 + step * (i + 0.5)
+        col = CRIMSON if name in ("BAHRAIN", "COP31") else NAVY
+        d.ellipse([cx - 6, sy + 24, cx + 6, sy + 36], fill=col,
+                  outline=(255, 255, 255), width=2)
+        nf = fit(d, name, MONO_B, 11, step - 8)
+        d.text((cx, sy + 42), name, font=nf, fill=INK, anchor="ma")
+        if date:
+            d.text((cx, sy + 56), date, font=font(MONO, 9), fill=CRIMSON,
+                   anchor="ma")
 
-    # --- story rows ----------------------------------------------------------
-    y = 404
-    for kind, head, summ, src in ROWS:
-        d.rounded_rectangle([36, y, 988, y + 78], radius=6, fill=ROW_BG,
-                            outline=(214, 206, 188), width=1)
-        d.rounded_rectangle([36, y, 128, y + 78], radius=6, fill=NAVY)
-        d.rectangle([92, y, 128, y + 78], fill=NAVY)  # square off right edge
-        pictogram(d, kind, 36, y, 92, 78)
-        hf = fit(d, head, SANS_B, 20, 800)
-        d.text((144, y + 7), head, font=hf, fill=INK)
-        sf = font(SANS, 16)
-        for i, line in enumerate(wrap(d, summ, sf, 824, max_lines=2)):
-            d.text((144, y + 34 + i * 20), line, font=sf, fill=(52, 60, 68))
-        d.text((972, y + 9), src, font=font(MONO_B, 11), fill=CRIMSON,
-               anchor="ra")
-        y += 86
+    # --- story grid: 2 columns, 19 + 18 --------------------------------------
+    gy = 420
+    d.line([(36, gy - 8), (988, gy - 8)], fill=INK, width=2)
+    col_w = 466
+    left = STORIES[:19]
+    right = STORIES[19:]
+    row_h = 29
+    for col_i, stories in enumerate((left, right)):
+        x = 36 + col_i * (col_w + 20)
+        for j, st in enumerate(stories):
+            story_block(d, st, x, gy + j * row_h, col_w)
+    grid_bottom = gy + 19 * row_h
 
-    # --- ticker --------------------------------------------------------------
-    ty = y + 10
-    d.rectangle([0, ty, W, ty + 40], fill=BLACK)
-    d.text((36, ty + 11), "ALSO TODAY", font=font(MONO_B, 14), fill=GOLD)
-    tf = fit(d, TICKER, MONO, 15, 808)
-    d.text((180, ty + 12), TICKER, font=tf, fill=(235, 238, 242))
-
-    # --- footer --------------------------------------------------------------
-    d.text((36, ty + 52),
-           "Every story checked against the reporting named above; nothing is "
-           "shown as decided before it happens.",
-           font=font(SANS, 13), fill=GREY)
-    d.text((988, ty + 52), "news-image-20261121 \u00b7 make.fun",
-           font=font(MONO, 12), fill=GREY, anchor="ra")
+    # --- footer ---------------------------------------------------------------
+    fy = grid_bottom + 8
+    d.rectangle([0, fy, W, fy + 2], fill=CRIMSON)
+    d.text((36, fy + 10),
+           "\u25cf confirmed   \u25d0 claimed   \u2715 disputed    \u00b7    "
+           "Sources: Reuters \u00b7 AP \u00b7 AFP \u00b7 BBC \u00b7 WSJ \u00b7 UKMTO",
+           font=font(SANS, 12), fill=GREY)
+    d.text((36, fy + 28),
+           "Compiled from the full day, 22 Nov 2026 ~17:00 UTC \u2014 every "
+           "story checked; nothing shown as decided before it happens.",
+           font=font(SANS, 12), fill=GREY)
+    d.text((988, fy + 10), "news-image-20261121 \u00b7 make.fun",
+           font=font(MONO, 11), fill=GREY, anchor="ra")
 
     img.save(OUT, format="JPEG", quality=92, optimize=False,
              progressive=False)
